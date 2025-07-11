@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Auto Tab Revolver",
+  "version": "1.0",
+  "description": "Revolves through tabs in a certain interval",
+  "permissions": ["tabs", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
