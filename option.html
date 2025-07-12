@@ -1,19 +1,19 @@
+<!-- options.html -->
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Tab Revolver</title>
-  <link rel="stylesheet" href="styles.css">
+  <title>Tab Revolver Settings</title>
+  <!-- same CSS and layout as before -->
 </head>
 <body>
   <div class="container">
     <h2>Tab Revolver</h2>
-    <input type="number" id="interval" placeholder="Time (seconds)" min="1" />
-    <div class="buttons">
+    <input type="number" id="interval" placeholder="Time (s)" min="1" />
+    <div class="btns">
       <button id="start">Start</button>
       <button id="stop">Stop</button>
     </div>
     <div id="status">Status: Loading...</div>
-    <div id="countdown">Next tab in: --s</div>
   </div>
   <script src="popup.js"></script>
 </body>

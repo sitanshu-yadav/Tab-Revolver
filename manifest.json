@@ -1,13 +1,24 @@
 {
   "manifest_version": 3,
-  "name": "Auto Tab Revolver",
-  "version": "1.0",
-  "description": "Revolves through tabs in a certain interval",
-  "permissions": ["tabs", "scripting"],
+  "name": "Tab Revolver",
+  "version": "2.0",
+  "description": "Automatically cycles through tabs in a set interval.",
+  "permissions": ["tabs", "storage"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icon.png",
+      "48": "icon.png",
+      "128": "icon.png"
+    }
+  },
   "background": {
     "service_worker": "background.js"
   },
-  "action": {
-    "default_popup": "popup.html"
-  }
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  },
+  "options_page": "popup.html"
 }
