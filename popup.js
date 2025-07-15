@@ -2,44 +2,54 @@ const startBtn = document.getElementById("start");
 const stopBtn = document.getElementById("stop");
 const intervalInput = document.getElementById("interval");
 const statusText = document.getElementById("status");
-const countdownDisplay = document.getElementById("countdown");
 
-function updateUI(status, delay, countdown) {
+let currentWindowId = null;
+
+function updateUI(status, delay) {
   if (status === "running") {
-    statusText.textContent = `Status: Running (every ${delay}s)`;
-    intervalInput.value = delay;
-    countdownDisplay.textContent = `Next tab in: ${countdown}s`;
+    statusText.textContent = `Status: Running (every ${delay / 1000}s)`;
+    intervalInput.value = delay / 1000;
   } else {
     statusText.textContent = "Status: Stopped";
-    countdownDisplay.textContent = `Next tab in: --s`;
   }
+}
+
+function loadWindowStatus() {
+  chrome.windows.getCurrent({}, (window) => {
+    currentWindowId = window.id;
+
+    chrome.runtime.sendMessage(
+      { action: "getWindowStatus", windowId: currentWindowId },
+      (res) => {
+        updateUI(res.running ? "running" : "stopped", res.delay || 5000);
+      }
+    );
+  });
 }
 
 startBtn.addEventListener("click", () => {
   const delay = parseInt(intervalInput.value);
   if (isNaN(delay) || delay <= 0) {
-    alert("Enter a valid time (seconds)");
+    alert("Enter a valid delay in seconds");
     return;
   }
 
-  chrome.runtime.sendMessage({ action: "start", delay: delay * 1000 }, () => {
-    updateUI("running", delay, delay);
+  chrome.runtime.sendMessage({
+    action: "startForWindow",
+    windowId: currentWindowId,
+    delay: delay * 1000
+  }, () => {
+    updateUI("running", delay * 1000);
   });
 });
 
 stopBtn.addEventListener("click", () => {
-  chrome.runtime.sendMessage({ action: "stop" }, () => {
-    updateUI("stopped", 0, 0);
+  chrome.runtime.sendMessage({
+    action: "stopForWindow",
+    windowId: currentWindowId
+  }, () => {
+    updateUI("stopped", 0);
   });
 });
 
-// Load current status on popup open
-function loadStatus() {
-  chrome.runtime.sendMessage({ action: "getStatus" }, (res) => {
-    if (!res) return;
-    updateUI(res.status, res.delay, res.countdown);
-  });
-}
-
-loadStatus();
-setInterval(loadStatus, 1000); // Keep countdown in sync
+loadWindowStatus();

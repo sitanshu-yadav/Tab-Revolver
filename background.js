@@ -1,87 +1,80 @@
-let interval = null;
-let currentIndex = 0;
-let countdown = 0;
+let windowIntervals = {};
 
-function switchTabs() {
-  chrome.tabs.query({ currentWindow: true }, (tabs) => {
-    if (tabs.length === 0) return;
-    currentIndex = (currentIndex + 1) % tabs.length;
-    chrome.tabs.update(tabs[currentIndex].id, { active: true });
+function switchTabsForWindow(windowId) {
+  chrome.tabs.query({ windowId: windowId }, (tabs) => {
+    if (!tabs || tabs.length === 0) return;
+
+    let activeTabIndex = tabs.findIndex(tab => tab.active);
+    let nextIndex = (activeTabIndex + 1) % tabs.length;
+
+    chrome.tabs.update(tabs[nextIndex].id, { active: true });
   });
 }
 
-function updateBadge(running) {
-  chrome.action.setBadgeBackgroundColor({ color: running ? "green" : "red" });
-  chrome.action.setBadgeText({ text: running ? "●" : "·" });  // smaller dot instead of emoji
-}
+function startRevolverForWindow(windowId, delay) {
+  if (windowIntervals[windowId]) clearInterval(windowIntervals[windowId]);
 
-
-function startRevolver(delay) {
-  if (interval) clearInterval(interval);
-
-  interval = setInterval(() => {
-    switchTabs();
-    countdown = delay / 1000;
+  windowIntervals[windowId] = setInterval(() => {
+    switchTabsForWindow(windowId);
   }, delay);
 
-  countdown = delay / 1000;
+  chrome.storage.local.get(["windowSettings"], (data) => {
+    let settings = data.windowSettings || {};
+    settings[windowId] = { running: true, delay: delay };
+    chrome.storage.local.set({ windowSettings: settings });
+    updateBadgeBasedOnWindows();
+  });
+  
+}
 
-  chrome.storage.local.set({
-    revolverRunning: true,
-    revolverDelay: delay
+function stopRevolverForWindow(windowId) {
+  if (windowIntervals[windowId]) clearInterval(windowIntervals[windowId]);
+  delete windowIntervals[windowId];
+
+  chrome.storage.local.get(["windowSettings"], (data) => {
+    let settings = data.windowSettings || {};
+    settings[windowId] = { running: false };
+    chrome.storage.local.set({ windowSettings: settings });
+    updateBadgeBasedOnWindows();
   });
 
-  updateBadge(true);
-
-  // Start countdown tick
-  startCountdown();
 }
 
-function stopRevolver() {
-  if (interval) clearInterval(interval);
-  interval = null;
-  countdown = 0;
-  chrome.storage.local.set({ revolverRunning: false });
-  updateBadge(false);
-}
-
-function startCountdown() {
-  setInterval(() => {
-    if (countdown > 0) {
-      countdown--;
-      chrome.storage.local.set({ countdown });
-    }
-  }, 1000);
-}
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "start") {
-    startRevolver(message.delay);
+  if (message.action === "startForWindow") {
+    startRevolverForWindow(message.windowId, message.delay);
     sendResponse({ status: "started" });
   }
 
-  if (message.action === "stop") {
-    stopRevolver();
+  if (message.action === "stopForWindow") {
+    stopRevolverForWindow(message.windowId);
     sendResponse({ status: "stopped" });
   }
 
-  if (message.action === "getStatus") {
-    chrome.storage.local.get(["revolverRunning", "revolverDelay", "countdown"], (data) => {
-      sendResponse({
-        status: data.revolverRunning ? "running" : "stopped",
-        delay: (data.revolverDelay || 5000) / 1000,
-        countdown: data.countdown || 0
-      });
+  if (message.action === "getWindowStatus") {
+    chrome.storage.local.get(["windowSettings"], (data) => {
+      let settings = data.windowSettings || {};
+      let windowSetting = settings[message.windowId] || { running: false, delay: 5000 };
+      sendResponse(windowSetting);
     });
-    return true; // Async response
+    return true;
   }
 });
+function updateBadgeBasedOnWindows() {
+  chrome.storage.local.get(["windowSettings"], (data) => {
+    const settings = data.windowSettings || {};
+    const activeWindows = Object.values(settings).filter(s => s.running).length;
 
-// Auto-start if previously running
-chrome.runtime.onStartup.addListener(() => {
-  chrome.storage.local.get(["revolverRunning", "revolverDelay"], (data) => {
-    if (data.revolverRunning && data.revolverDelay) {
-      startRevolver(data.revolverDelay);
+    if (activeWindows === 0) {
+      chrome.action.setBadgeText({ text: "0" });
+      chrome.action.setBadgeBackgroundColor({ color: "red" });
+    } else if (activeWindows === 1) {
+      chrome.action.setBadgeText({ text: "1" });
+      chrome.action.setBadgeBackgroundColor({ color: "green" });
+    } else {
+      chrome.action.setBadgeText({ text: activeWindows.toString() });
+      chrome.action.setBadgeBackgroundColor({ color: "orange" });
     }
   });
-});
+}
